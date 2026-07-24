@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Glosario de Toya</title>
+  <style>
+    :root {
+      --bg: #f8f9fa;
+      --card-bg: #ffffff;
+      --primary: #212529;
+      --accent: #d90429;
+      --border: #e9ecef;
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: var(--bg);
+      color: var(--primary);
+      margin: 0;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      width: 100%;
+      max-width: 500px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      margin: 0 0 10px 0;
+      text-align: center;
+    }
+
+    .recorder-panel {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    input[type="text"] {
+      padding: 10px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-record { background: #e63946; color: white; }
+    .btn-stop { background: #6c757d; color: white; }
+    .btn-save { background: #2a9d8f; color: white; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+      width: 100%;
+      max-width: 500px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      user-select: none;
+      text-align: center;
+    }
+
+    .card:active {
+      transform: scale(0.97);
+    }
+
+    .word-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+
+    .audio-icon {
+      font-size: 0.85rem;
+      color: #6c757d;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Glosario de Toya 🎙️</h1>
+    
+    <div class="recorder-panel">
+      <div class="form-group">
+        <label for="wordInput"><strong>Palabra escrita:</strong></label>
+        <input type="text" id="wordInput" placeholder="Ej. Colores">
+      </div>
+      <div class="controls">
+        <button class="btn-record" id="startBtn">🔴 Grabar a Toya</button>
+        <button class="btn-stop" id="stopBtn" disabled>⏹️ Detener</button>
+      </div>
+      <audio id="audioPreview" controls style="width: 100%; margin-top: 10px; display: none;"></audio>
+      <button class="btn-save" id="saveBtn" style="width: 100%; margin-top: 10px; display: none;">Guardar en el Glosario</button>
+    </div>
+  </header>
+
+  <div class="grid" id="wordsGrid"></div>
+
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+    let audioBlob = null;
+    let audioUrl = null;
+
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const wordInput = document.getElementById('wordInput');
+    const audioPreview = document.getElementById('audioPreview');
+    const wordsGrid = document.getElementById('wordsGrid');
+
+    startBtn.addEventListener('click', async () => {
+      if (!wordInput.value.trim()) {
+        alert("Escribe la palabra antes de grabar.");
+        return;
+      }
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+
+      mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+      mediaRecorder.onstop = () => {
+        audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+        audioUrl = URL.createObjectURL(audioBlob);
+        audioPreview.src = audioUrl;
+        audioPreview.style.display = 'block';
+        saveBtn.style.display = 'block';
+      };
+
+      mediaRecorder.start();
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+    });
+
+    stopBtn.addEventListener('click', () => {
+      mediaRecorder.stop();
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    });
+
+    saveBtn.addEventListener('click', () => {
+      const text = wordInput.value.trim();
+      if (!text || !audioUrl) return;
+
+      createCard(text, audioUrl);
+      
+      wordInput.value = '';
+      audioPreview.style.display = 'none';
+      saveBtn.style.display = 'none';
+    });
+
+    function createCard(word, soundSrc) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <span class="word-title">${word}</span>
+        <span class="audio-icon">▶ Escuchar a Toya</span>
+      `;
+
+      card.addEventListener('click', () => {
+        const audio = new Audio(soundSrc);
+        audio.play();
+      });
+
+      wordsGrid.prepend(card);
+    }
+  </script>
+</body>
+</html>
